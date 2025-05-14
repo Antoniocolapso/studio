@@ -1,9 +1,11 @@
+
 "use client";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input"; // Using Input for consistent styling, but disabled
 import type { OutputParameters } from '@/types';
+import { cn } from "@/lib/utils";
 
 interface OutputDisplayPanelProps {
   outputParams: OutputParameters;
@@ -32,19 +34,12 @@ export default function OutputDisplayPanel({ outputParams, status, error }: Outp
     return value;
   };
   
-  const positiveValueStyle = (value: number): string => {
-    // Example: slippage < 0.01 is good (low cost)
-    // This is a placeholder logic for "positive value" indication.
-    if (!isNaN(value) && isFinite(value) && value < 0.01 && value >= 0) return "text-[#00FF00]"; 
-    return "";
-  }
-
   return (
     <Card className="w-full shadow-lg">
       <CardHeader>
         <CardTitle className="text-2xl font-semibold">Estimated Costs & Impact</CardTitle>
         {status === 'connecting' && <p className="text-sm text-muted-foreground">Attempting to connect to WebSocket...</p>}
-        {status === 'disconnected' && <p className="text-sm text-yellow-600">WebSocket disconnected. Attempting to reconnect...</p>}
+        {status === 'disconnected' && <p className="text-sm text-yellow-600 dark:text-yellow-400">WebSocket disconnected. Attempting to reconnect...</p>}
         {error && <p className="text-sm text-destructive">{error}</p>}
       </CardHeader>
       <CardContent className="space-y-6">
@@ -62,7 +57,7 @@ export default function OutputDisplayPanel({ outputParams, status, error }: Outp
               id={`output-${index}`} 
               value={renderValue(item.value)} 
               disabled 
-              className={item.isPositive && status === 'connected' ? "text-[#00FF00]" : ""}
+              className={cn({ "text-green-600 dark:text-green-400": item.isPositive && status === 'connected' })}
             />
           </div>
         ))}
