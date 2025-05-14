@@ -13,7 +13,7 @@ export interface InputParameters {
   spotAsset: string;
   orderType: 'market';
   quantity: number;
-  volatility: number | undefined; // Can be string if user types, then parse
+  volatility: number | undefined;
   feeTier: string; // e.g., "0.1%"
 }
 
@@ -28,16 +28,9 @@ export interface OutputParameters {
 
 export type WebSocketStatus = 'connecting' | 'connected' | 'disconnected' | 'error';
 
-// Data format for TradingView Lightweight Charts
-export interface OHLCVData {
-  time: string; // YYYY-MM-DD or Unix timestamp
-  open: number;
-  high: number;
-  low: number;
-  close: number;
-  volume?: number;
+// For MarketDepthChart
+export interface DepthChartDataPoint {
+  price: number;
+  bidVolume?: number; // Cumulative bid volume
+  askVolume?: number; // Cumulative ask volume
 }
-
-export type ChartType = 'candlestick' | 'line' | 'area' | 'bar' | 'heikin-ashi' | 'baseline';
-
-export type IndicatorType = 'none' | 'moving-average';

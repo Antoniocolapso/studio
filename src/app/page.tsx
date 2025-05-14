@@ -2,24 +2,14 @@
 "use client";
 
 import { useState, useEffect, useCallback } from 'react';
-import dynamic from 'next/dynamic';
 import TradeInputPanel from '@/components/trade-input-panel';
 import OutputDisplayPanel from '@/components/output-display-panel';
 import { DarkModeToggle } from '@/components/dark-mode-toggle';
 import { useOrderbook } from '@/hooks/use-orderbook';
 import type { InputParameters, OutputParameters, OrderBookData } from '@/types';
 import { useToast } from "@/hooks/use-toast";
-import { Skeleton } from '@/components/ui/skeleton';
-
-const TradingTerminal = dynamic(() => import('@/components/TradingTerminal'), {
-  ssr: false,
-  loading: () => (
-    <div className="w-full h-[400px] lg:h-[500px] flex flex-col space-y-4">
-      <Skeleton className="h-10 w-1/4" />
-      <Skeleton className="flex-1 w-full" />
-    </div>
-  ),
-});
+import LiveOrderBookTable from '@/components/LiveOrderBookTable';
+import MarketDepthChart from '@/components/MarketDepthChart';
 
 
 const initialInputParams: InputParameters = {
@@ -43,7 +33,7 @@ const initialOutputParams: OutputParameters = {
 export default function HomePage() {
   const [inputParams, setInputParams] = useState<InputParameters>(initialInputParams);
   const [outputParams, setOutputParams] = useState<OutputParameters>(initialOutputParams);
-  const { orderBook, status, error } = useOrderbook(); // Still useful for OutputDisplayPanel
+  const { orderBook, status, error } = useOrderbook();
   const { toast } = useToast();
   const [currentTime, setCurrentTime] = useState<string | null>(null);
 
@@ -110,7 +100,7 @@ export default function HomePage() {
   
   useEffect(() => {
     if (status === 'connected') {
-      toast({ title: "WebSocket Connected", description: "Receiving real-time order book data for calculations." });
+      toast({ title: "WebSocket Connected", description: "Receiving real-time order book data." });
     } else if (status === 'disconnected') {
       toast({ title: "WebSocket Disconnected", description: "Attempting to reconnect...", variant: "destructive" });
     } else if (status === 'error' && error) {
@@ -133,7 +123,7 @@ export default function HomePage() {
         <div className="flex justify-between items-center">
           <div className="text-left">
             <h1 className="text-4xl font-bold text-primary">TradeFlow</h1>
-            <p className="text-muted-foreground">Real-time Trade Execution Simulator & Charting</p>
+            <p className="text-muted-foreground">Real-time L2 Order Book Analysis</p>
           </div>
           <div className="flex items-center gap-4">
              {currentTime && <span className="text-sm text-muted-foreground hidden md:inline">{currentTime}</span>}
@@ -147,7 +137,8 @@ export default function HomePage() {
         </div>
         <div className="lg:col-span-2 space-y-6">
           <OutputDisplayPanel outputParams={outputParams} status={status} error={error} />
-          <TradingTerminal />
+          <LiveOrderBookTable orderBook={orderBook} status={status} />
+          <MarketDepthChart orderBook={orderBook} status={status} />
         </div>
       </main>
       <footer className="mt-12 text-center text-sm text-muted-foreground">
