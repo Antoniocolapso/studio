@@ -20,7 +20,7 @@ export default function OrderBookChart({ orderBook }: OrderBookChartProps) {
     return (
       <Card className="w-full shadow-lg rounded-lg">
         <CardHeader>
-          <CardTitle className="text-xl font-semibold">Order Book Depth</CardTitle>
+          <CardTitle className="text-xl font-semibold">Order Book Levels</CardTitle>
           <CardDescription>No data available to display chart.</CardDescription>
         </CardHeader>
         <CardContent className="h-[300px] flex items-center justify-center">
@@ -72,7 +72,7 @@ export default function OrderBookChart({ orderBook }: OrderBookChartProps) {
   return (
     <Card className="w-full shadow-lg rounded-lg">
       <CardHeader>
-        <CardTitle className="text-xl font-semibold">Order Book Depth (Top {MAX_LEVELS_TO_DISPLAY} Levels)</CardTitle>
+        <CardTitle className="text-xl font-semibold">Top {MAX_LEVELS_TO_DISPLAY} Order Book Levels</CardTitle>
         <CardDescription>Visualization of bid and ask quantities at different price levels.</CardDescription>
       </CardHeader>
       <CardContent>
@@ -117,7 +117,7 @@ export default function OrderBookChart({ orderBook }: OrderBookChartProps) {
                 />
               }
             />
-            <Bar dataKey="quantity" radius={[4, 4, 0, 0]} maxBarSize={60}>
+            <Bar dataKey="quantity" radius={[4, 4, 0, 0]} maxBarSize={80}> {/* Increased maxBarSize */}
               {chartData.map((entry, index) => (
                 <Cell key={`cell-${index}`} fill={entry.type === 'bid' ? chartConfig.bids.color : chartConfig.asks.color} />
               ))}

@@ -1,13 +1,16 @@
+
 "use client";
 
 import { useState, useEffect, useCallback } from 'react';
 import TradeInputPanel from '@/components/trade-input-panel';
 import OutputDisplayPanel from '@/components/output-display-panel';
 import OrderBookChart from '@/components/order-book-chart';
+import CumulativeDepthChart from '@/components/cumulative-depth-chart'; // Import new chart
 import { DarkModeToggle } from '@/components/dark-mode-toggle';
 import { useOrderbook } from '@/hooks/use-orderbook';
 import type { InputParameters, OutputParameters, OrderBookData } from '@/types';
 import { useToast } from "@/hooks/use-toast";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"; // Import Tabs
 
 const initialInputParams: InputParameters = {
   exchange: 'OKX',
@@ -134,7 +137,18 @@ export default function HomePage() {
         </div>
         <div className="lg:col-span-2 space-y-6">
           <OutputDisplayPanel outputParams={outputParams} status={status} error={error} />
-          <OrderBookChart orderBook={orderBook} />
+          <Tabs defaultValue="levels" className="w-full">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="levels">Top Levels</TabsTrigger>
+              <TabsTrigger value="depth">Cumulative Depth</TabsTrigger>
+            </TabsList>
+            <TabsContent value="levels" className="mt-4">
+              <OrderBookChart orderBook={orderBook} />
+            </TabsContent>
+            <TabsContent value="depth" className="mt-4">
+              <CumulativeDepthChart orderBook={orderBook} />
+            </TabsContent>
+          </Tabs>
         </div>
       </main>
       <footer className="mt-12 text-center text-sm text-muted-foreground">
@@ -143,3 +157,4 @@ export default function HomePage() {
     </div>
   );
 }
+
