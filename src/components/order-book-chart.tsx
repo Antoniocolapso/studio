@@ -117,7 +117,7 @@ export default function OrderBookChart({ orderBook }: OrderBookChartProps) {
                 />
               }
             />
-            <Bar dataKey="quantity" radius={[4, 4, 0, 0]} maxBarSize={80}> {/* Increased maxBarSize */}
+            <Bar dataKey="quantity" radius={[4, 4, 0, 0]} maxBarSize={120}> {/* Increased maxBarSize further */}
               {chartData.map((entry, index) => (
                 <Cell key={`cell-${index}`} fill={entry.type === 'bid' ? chartConfig.bids.color : chartConfig.asks.color} />
               ))}
