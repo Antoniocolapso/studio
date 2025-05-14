@@ -54,9 +54,9 @@ export default function HomePage() {
       return { 
         expectedSlippage: 0,
         expectedFees: 0,
-        expectedMarketImpact: 0, // Placeholder
+        expectedMarketImpact: 0,
         netCost: 0,
-        makerTakerProportion: 'N/A', // Placeholder
+        makerTakerProportion: 'N/A',
         internalLatency: latency 
       };
     }
@@ -148,13 +148,13 @@ export default function HomePage() {
       </header>
       <main className="flex-grow w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          {/* Left Column */}
+          {/* Left Column: Input Parameters */}
           <div className="lg:col-span-4 xl:col-span-3 space-y-6">
             <TradeInputPanel inputParams={inputParams} onInputChange={handleInputChange} />
-            <OutputDisplayPanel outputParams={outputParams} status={status} error={error} />
           </div>
-          {/* Right Column */}
+          {/* Right Column: Processed Output Values & Visualizations */}
           <div className="lg:col-span-8 xl:col-span-9 space-y-6">
+            <OutputDisplayPanel outputParams={outputParams} status={status} error={error} />
             <LiveOrderBookTable orderBook={orderBook} status={status} />
             <MarketDepthChart orderBook={orderBook} status={status} />
           </div>
@@ -166,3 +166,4 @@ export default function HomePage() {
     </div>
   );
 }
+
