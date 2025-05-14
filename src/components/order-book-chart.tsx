@@ -25,7 +25,7 @@ export default function OrderBookChart({ orderBook }: OrderBookChartProps) {
         <CardContent className="h-[300px] flex items-center justify-center">
           <p className="text-muted-foreground">Waiting for order book data...</p>
         </CardContent>
-      </Card>>
+      </Card>
     );
   }
 
