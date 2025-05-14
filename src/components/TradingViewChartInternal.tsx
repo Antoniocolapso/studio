@@ -127,24 +127,44 @@ const TradingViewChartInternal: React.FC = () => {
       resizeObserver.disconnect();
       chart.remove();
       chartApiRef.current = null;
+      seriesRef.current = null; 
+      maSeriesRef.current = null;
     };
   }, [getChartColors]);
 
   // Update chart series based on type and data
   useEffect(() => {
-    if (!chartApiRef.current) return;
+    const currentChart = chartApiRef.current; // Capture current value for consistent use in this effect
+    if (!currentChart) return;
+    
+    const colors = getChartColors();
 
     // Remove existing series before adding a new one
     if (seriesRef.current) {
-      chartApiRef.current.removeSeries(seriesRef.current);
+      if (typeof currentChart.removeSeries === 'function') {
+        try {
+          currentChart.removeSeries(seriesRef.current);
+        } catch (e) {
+          console.error("Error removing main series:", e, seriesRef.current, currentChart);
+        }
+      } else {
+        console.error("currentChart.removeSeries is not a function for main series", currentChart);
+      }
       seriesRef.current = null;
     }
     if (maSeriesRef.current) {
-      chartApiRef.current.removeSeries(maSeriesRef.current);
+       if (typeof currentChart.removeSeries === 'function') {
+        try {
+          currentChart.removeSeries(maSeriesRef.current);
+        } catch (e) {
+          console.error("Error removing MA series:", e, maSeriesRef.current, currentChart);
+        }
+      } else {
+        console.error("currentChart.removeSeries is not a function for MA series", currentChart);
+      }
       maSeriesRef.current = null;
     }
     
-    const colors = getChartColors();
     let newSeries: ISeriesApi<ChartType> | null = null;
 
     const chartData = sampleData.map(d => ({
@@ -154,7 +174,7 @@ const TradingViewChartInternal: React.FC = () => {
 
     switch (selectedChartType) {
       case 'candlestick':
-        newSeries = chartApiRef.current.addCandlestickSeries({
+        newSeries = currentChart.addCandlestickSeries({
           upColor: colors.barUpColor,
           downColor: colors.barDownColor,
           wickUpColor: colors.wickUpColor,
@@ -164,11 +184,11 @@ const TradingViewChartInternal: React.FC = () => {
         (newSeries as ISeriesApi<'Candlestick'>).setData(chartData);
         break;
       case 'line':
-        newSeries = chartApiRef.current.addLineSeries({ color: colors.lineColor, lineWidth: 2 } as LineSeriesPartialOptions);
+        newSeries = currentChart.addLineSeries({ color: colors.lineColor, lineWidth: 2 } as LineSeriesPartialOptions);
         (newSeries as ISeriesApi<'Line'>).setData(chartData.map(d => ({ time: d.time, value: d.close })));
         break;
       case 'area':
-        newSeries = chartApiRef.current.addAreaSeries({
+        newSeries = currentChart.addAreaSeries({
           lineColor: colors.lineColor,
           topColor: colors.areaTopColor,
           bottomColor: colors.areaBottomColor,
@@ -177,14 +197,14 @@ const TradingViewChartInternal: React.FC = () => {
         (newSeries as ISeriesApi<'Area'>).setData(chartData.map(d => ({ time: d.time, value: d.close })));
         break;
       case 'bar':
-        newSeries = chartApiRef.current.addBarSeries({
+        newSeries = currentChart.addBarSeries({
             upColor: colors.barUpColor,
             downColor: colors.barDownColor,
         } as BarSeriesPartialOptions);
         (newSeries as ISeriesApi<'Bar'>).setData(chartData);
         break;
       case 'heikin-ashi':
-         newSeries = chartApiRef.current.addCandlestickSeries({ // Heikin Ashi uses CandlestickSeries with specific data transformation
+         newSeries = currentChart.addCandlestickSeries({ // Heikin Ashi uses CandlestickSeries with specific data transformation
             upColor: colors.barUpColor,
             downColor: colors.barDownColor,
             wickUpColor: colors.wickUpColor,
@@ -197,7 +217,7 @@ const TradingViewChartInternal: React.FC = () => {
         (newSeries as ISeriesApi<'Candlestick'>).setData(chartData); 
         break;
        case 'baseline':
-        newSeries = chartApiRef.current.addBaselineSeries({
+        newSeries = currentChart.addBaselineSeries({
             baseValue: { type: 'price', price: (sampleData[0].open + sampleData[0].close) / 2 }, // Example baseline
             topFillColor1: colors.baselineTopFillColor1,
             topFillColor2: colors.baselineTopFillColor2,
@@ -215,7 +235,7 @@ const TradingViewChartInternal: React.FC = () => {
     if (selectedIndicator === 'moving-average' && newSeries) {
       const maData = calculateMA(sampleData, maPeriod);
       if (maData.length > 0) {
-        const newMaSeries = chartApiRef.current.addLineSeries({
+        const newMaSeries = currentChart.addLineSeries({
           color: colors.maColor,
           lineWidth: 1,
           priceLineVisible: false,
@@ -225,16 +245,18 @@ const TradingViewChartInternal: React.FC = () => {
         maSeriesRef.current = newMaSeries;
       }
     }
-    chartApiRef.current.timeScale().fitContent();
+    currentChart.timeScale().fitContent();
 
   }, [selectedChartType, selectedIndicator, maPeriod, getChartColors]);
 
 
   // Update chart theme colors
   useEffect(() => {
-    if (!chartApiRef.current) return;
+    const currentChart = chartApiRef.current;
+    if (!currentChart) return;
+
     const colors = getChartColors();
-    chartApiRef.current.applyOptions({
+    currentChart.applyOptions({
       layout: {
         background: { type: ColorType.Solid, color: colors.background },
         textColor: colors.textColor,
@@ -248,11 +270,12 @@ const TradingViewChartInternal: React.FC = () => {
     });
 
     // Re-apply series colors if they depend on theme
-    if (seriesRef.current) {
+    const currentMainSeries = seriesRef.current;
+    if (currentMainSeries) {
         switch (selectedChartType) {
             case 'candlestick':
-            case 'heikin-ashi': // Assuming it uses candlestick series under the hood
-                seriesRef.current.applyOptions({
+            case 'heikin-ashi': 
+                currentMainSeries.applyOptions({
                     upColor: colors.barUpColor,
                     downColor: colors.barDownColor,
                     wickUpColor: colors.wickUpColor,
@@ -260,23 +283,23 @@ const TradingViewChartInternal: React.FC = () => {
                 } as CandlestickSeriesPartialOptions);
                 break;
             case 'line':
-                seriesRef.current.applyOptions({ color: colors.lineColor } as LineSeriesPartialOptions);
+                currentMainSeries.applyOptions({ color: colors.lineColor } as LineSeriesPartialOptions);
                 break;
             case 'area':
-                seriesRef.current.applyOptions({
+                currentMainSeries.applyOptions({
                     lineColor: colors.lineColor,
                     topColor: colors.areaTopColor,
                     bottomColor: colors.areaBottomColor,
                 } as AreaSeriesPartialOptions);
                 break;
             case 'bar':
-                 seriesRef.current.applyOptions({
+                 currentMainSeries.applyOptions({
                     upColor: colors.barUpColor,
                     downColor: colors.barDownColor,
                 } as BarSeriesPartialOptions);
                 break;
             case 'baseline':
-                seriesRef.current.applyOptions({
+                currentMainSeries.applyOptions({
                     topFillColor1: colors.baselineTopFillColor1,
                     topFillColor2: colors.baselineTopFillColor2,
                     topLineColor: colors.baselineTopLineColor,
@@ -287,11 +310,12 @@ const TradingViewChartInternal: React.FC = () => {
                 break;
         }
     }
-    if (maSeriesRef.current) {
-        maSeriesRef.current.applyOptions({ color: colors.maColor });
+    const currentMaSeries = maSeriesRef.current;
+    if (currentMaSeries) {
+        currentMaSeries.applyOptions({ color: colors.maColor });
     }
 
-  }, [theme, getChartColors, selectedChartType]);
+  }, [theme, getChartColors, selectedChartType]); // selectedChartType added to ensure series options are reapplied if type changes
 
   return (
     <div className="flex flex-col">
@@ -335,4 +359,3 @@ const TradingViewChartInternal: React.FC = () => {
 };
 
 export default TradingViewChartInternal;
-
