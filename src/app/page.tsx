@@ -142,7 +142,7 @@ export default function HomePage() {
         </div>
       </main>
       <footer className="mt-12 text-center text-sm text-muted-foreground">
-        <p>&copy; {new Date().getFullYear()} TradeFlow. Powered by GoQuant Tech.</p>
+        <p>&copy; {new Date().getFullYear()} TradeFlow. Made with passion ❤️ by Omm [aka Antonio Colapso]</p>
       </footer>
     </div>
   );
