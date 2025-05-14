@@ -27,3 +27,17 @@ export interface OutputParameters {
 }
 
 export type WebSocketStatus = 'connecting' | 'connected' | 'disconnected' | 'error';
+
+// Data format for TradingView Lightweight Charts
+export interface OHLCVData {
+  time: string; // YYYY-MM-DD or Unix timestamp
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+  volume?: number;
+}
+
+export type ChartType = 'candlestick' | 'line' | 'area' | 'bar' | 'heikin-ashi' | 'baseline';
+
+export type IndicatorType = 'none' | 'moving-average';
