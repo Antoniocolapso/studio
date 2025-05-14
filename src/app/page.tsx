@@ -10,6 +10,12 @@ import type { InputParameters, OutputParameters, OrderBookData } from '@/types';
 import { useToast } from "@/hooks/use-toast";
 import LiveOrderBookTable from '@/components/LiveOrderBookTable';
 import MarketDepthChart from '@/components/MarketDepthChart';
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 
 
 const initialInputParams: InputParameters = {
@@ -65,25 +71,22 @@ export default function HomePage() {
     let calculatedSlippage = 0;
     let calculatedFees = 0;
     
-    // Simplified slippage and fee calculation
     if (asks.length > 0 && bids.length > 0) {
       const bestAskPrice = parseFloat(asks[0][0]);
       const bestBidPrice = parseFloat(bids[0][0]);
       const midPrice = (bestAskPrice + bestBidPrice) / 2;
       
-      // Example: slippage based on spread and quantity (very simplified)
       calculatedSlippage = (bestAskPrice - midPrice) * currentInputs.quantity;
 
-      // Example: fee calculation
       const feePercentage = parseFloat(currentInputs.feeTier.replace('%', '')) / 100;
       if (!isNaN(feePercentage)) {
         calculatedFees = currentInputs.quantity * bestAskPrice * feePercentage;
       }
     }
     
-    const marketImpactPlaceholder = 0; // Placeholder for Almgren-Chriss model output
+    const marketImpactPlaceholder = 0; 
     const netCost = calculatedSlippage + calculatedFees + marketImpactPlaceholder;
-    const makerTakerPlaceholder = "N/A"; // Placeholder for logistic regression output
+    const makerTakerPlaceholder = "N/A";
 
     const endTime = performance.now();
     const latency = endTime - startTime;
@@ -103,7 +106,6 @@ export default function HomePage() {
       const newOutputs = calculateOutputs(orderBook, inputParams);
       setOutputParams(newOutputs);
     } else if (status !== 'connecting') {
-      // Preserve latency if it was already calculated, otherwise set to 0 or initial
       const currentLatency = outputParams.internalLatency; 
       setOutputParams({
         ...initialOutputParams, 
@@ -125,7 +127,6 @@ export default function HomePage() {
 
   const handleInputChange = (newParams: InputParameters) => {
     setInputParams(newParams);
-    // Recalculate if order book data is available
     if (orderBook && status === 'connected') {
        const newOutputs = calculateOutputs(orderBook, newParams);
        setOutputParams(newOutputs);
@@ -147,18 +148,30 @@ export default function HomePage() {
         </div>
       </header>
       <main className="flex-grow w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          {/* Left Column: Input Parameters */}
-          <div className="lg:col-span-4 xl:col-span-3 space-y-6">
-            <TradeInputPanel inputParams={inputParams} onInputChange={handleInputChange} />
-          </div>
-          {/* Right Column: Processed Output Values & Visualizations */}
-          <div className="lg:col-span-8 xl:col-span-9 space-y-6">
-            <OutputDisplayPanel outputParams={outputParams} status={status} error={error} />
-            <LiveOrderBookTable orderBook={orderBook} status={status} />
-            <MarketDepthChart orderBook={orderBook} status={status} />
-          </div>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+          <TradeInputPanel inputParams={inputParams} onInputChange={handleInputChange} />
+          <OutputDisplayPanel outputParams={outputParams} status={status} error={error} />
         </div>
+
+        <Accordion type="multiple" className="w-full space-y-6">
+          <AccordionItem value="live-order-book" className="border border-border rounded-lg shadow-lg overflow-hidden">
+            <AccordionTrigger className="text-xl font-semibold px-6 py-4 bg-card hover:no-underline data-[state=open]:border-b data-[state=open]:rounded-b-none">
+              Live Order Book: {orderBook?.symbol || inputParams.spotAsset}
+            </AccordionTrigger>
+            <AccordionContent className="bg-card p-0">
+              <LiveOrderBookTable orderBook={orderBook} status={status} variant="collapsibleContent" />
+            </AccordionContent>
+          </AccordionItem>
+
+          <AccordionItem value="market-depth-chart" className="border border-border rounded-lg shadow-lg overflow-hidden">
+            <AccordionTrigger className="text-xl font-semibold px-6 py-4 bg-card hover:no-underline data-[state=open]:border-b data-[state=open]:rounded-b-none">
+              Market Depth: {orderBook?.symbol || inputParams.spotAsset}
+            </AccordionTrigger>
+            <AccordionContent className="bg-card p-0">
+               <MarketDepthChart orderBook={orderBook} status={status} variant="collapsibleContent" />
+            </AccordionContent>
+          </AccordionItem>
+        </Accordion>
       </main>
       <footer className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 mt-auto border-t border-border">
         <p className="text-center text-sm text-muted-foreground">&copy; {new Date().getFullYear()} TradeFlow. Made with passion ❤️ by Omm [aka Antonio Colapso]</p>
@@ -166,4 +179,3 @@ export default function HomePage() {
     </div>
   );
 }
-

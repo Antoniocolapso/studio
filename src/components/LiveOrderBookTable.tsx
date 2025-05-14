@@ -7,61 +7,27 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { ScrollArea } from "@/components/ui/scroll-area";
 import type { OrderBookData, OrderBookLevel } from '@/types';
 import { Skeleton } from '@/components/ui/skeleton';
+import { cn } from '@/lib/utils';
 
 interface LiveOrderBookTableProps {
   orderBook: OrderBookData | null;
   status: string;
+  variant?: 'default' | 'collapsibleContent';
 }
 
-const MAX_LEVELS_DISPLAY = 15; // Show top N levels
+const MAX_LEVELS_DISPLAY = 15;
 
 const formatPrice = (priceStr: string) => parseFloat(priceStr).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const formatQuantity = (quantityStr: string) => parseFloat(quantityStr).toFixed(4);
 
-const LiveOrderBookTable: FC<LiveOrderBookTableProps> = ({ orderBook, status }) => {
-  if (status === 'connecting') {
-    return (
-      <Card className="w-full shadow-lg rounded-lg">
-        <CardHeader>
-          <CardTitle className="text-xl font-semibold">Live Order Book</CardTitle>
-          <CardDescription>Connecting to order book...</CardDescription>
-        </CardHeader>
-        <CardContent className="h-[400px]">
-          <div className="space-y-2">
-            {[...Array(10)].map((_, i) => <Skeleton key={i} className="h-8 w-full" />)}
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
+const LiveOrderBookTable: FC<LiveOrderBookTableProps> = ({ orderBook, status, variant = 'default' }) => {
+  const bids = orderBook?.bids.slice(0, MAX_LEVELS_DISPLAY) ?? [];
+  const asks = orderBook?.asks.slice(0, MAX_LEVELS_DISPLAY).sort((a, b) => parseFloat(a[0]) - parseFloat(b[0])) ?? [];
 
-  if (status === 'error' || !orderBook || (!orderBook.asks.length && !orderBook.bids.length)) {
-    return (
-      <Card className="w-full shadow-lg rounded-lg">
-        <CardHeader>
-          <CardTitle className="text-xl font-semibold">Live Order Book</CardTitle>
-          <CardDescription>
-            {status === 'error' ? 'Error loading order book data.' : 'No order book data available.'}
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="h-[400px] flex items-center justify-center">
-          <p className="text-muted-foreground">
-            {status === 'error' ? 'Please try again later.' : 'Waiting for data...'}
-          </p>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  const bids = orderBook.bids.slice(0, MAX_LEVELS_DISPLAY);
-  const asks = orderBook.asks.slice(0, MAX_LEVELS_DISPLAY).sort((a, b) => parseFloat(a[0]) - parseFloat(b[0])); // Asks are typically displayed lowest price first
-
-  // Find spread
   const bestBid = bids.length > 0 ? parseFloat(bids[0][0]) : 0;
   const bestAsk = asks.length > 0 ? parseFloat(asks[0][0]) : 0;
   const spread = bestAsk > 0 && bestBid > 0 ? (bestAsk - bestBid).toFixed(2) : "N/A";
   const spreadPercentage = bestAsk > 0 && bestBid > 0 ? ((bestAsk - bestBid) / bestAsk * 100).toFixed(2) + "%" : "N/A";
-
 
   const renderRows = (levels: OrderBookLevel[], type: 'bid' | 'ask') => {
     let cumulativeQuantity = 0;
@@ -81,17 +47,72 @@ const LiveOrderBookTable: FC<LiveOrderBookTableProps> = ({ orderBook, status }) 
     });
   };
 
-  return (
-    <Card className="w-full shadow-lg rounded-lg">
-      <CardHeader>
-        <CardTitle className="text-xl font-semibold">Live Order Book: {orderBook.symbol}</CardTitle>
-        <CardDescription>
-          Spread: {spread} ({spreadPercentage})
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="p-0">
+  const loadingStateSkeleton = (
+    <>
+      {variant === 'default' && (
+        <CardHeader>
+          <CardTitle className="text-xl font-semibold">Live Order Book</CardTitle>
+          <CardDescription>Connecting to order book...</CardDescription>
+        </CardHeader>
+      )}
+       <div className={cn("h-[400px]", variant === 'default' ? "p-6 pt-0" : "p-6")}>
+        {variant === 'collapsibleContent' && (
+            <div className="mb-4">
+                <Skeleton className="h-6 w-1/3 mb-1" /> {/* For Title placeholder */}
+                <Skeleton className="h-4 w-1/2" /> {/* For Description placeholder */}
+            </div>
+        )}
+        <div className="space-y-2">
+          {[...Array(10)].map((_, i) => <Skeleton key={i} className="h-8 w-full" />)}
+        </div>
+      </div>
+    </>
+  );
+
+  const errorOrNoDataState = (
+    <>
+      {variant === 'default' && (
+         <CardHeader>
+          <CardTitle className="text-xl font-semibold">Live Order Book</CardTitle>
+          <CardDescription>
+            {status === 'error' ? 'Error loading order book data.' : 'No order book data available.'}
+          </CardDescription>
+        </CardHeader>
+      )}
+      <div className={cn("h-[400px] flex items-center justify-center", variant === 'default' ? "p-6 pt-0" : "p-6")}>
+         {variant === 'collapsibleContent' && status !== 'error' && !orderBook && (
+             <p className="text-muted-foreground text-center">No order book data available.<br/>Waiting for data...</p>
+         )}
+         {variant === 'collapsibleContent' && status === 'error' && (
+             <p className="text-destructive text-center">Error loading order book data.<br/>Please try again later.</p>
+         )}
+         {variant === 'default' && (
+            <p className="text-muted-foreground">
+                {status === 'error' ? 'Please try again later.' : 'Waiting for data...'}
+            </p>
+         )}
+      </div>
+    </>
+  );
+  
+  const tableContent = (
+    <>
+      {variant === 'default' && (
+        <CardHeader>
+          <CardTitle className="text-xl font-semibold">Live Order Book: {orderBook?.symbol}</CardTitle>
+          <CardDescription>
+            Spread: {spread} ({spreadPercentage})
+          </CardDescription>
+        </CardHeader>
+      )}
+      {variant === 'collapsibleContent' && orderBook && (
+         <div className="px-6 pt-4 pb-2 text-sm text-muted-foreground">
+           Spread: {spread} ({spreadPercentage})
+         </div>
+      )}
+      <div className={cn("p-0", variant === 'collapsibleContent' && "px-6 pb-6 pt-2")}>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-0">
-          <ScrollArea className="h-[350px] md:h-[400px] border-r border-border">
+          <ScrollArea className="h-[350px] md:h-[400px] md:border-r md:border-border">
             <Table className="text-xs">
               <TableHeader>
                 <TableRow>
@@ -120,7 +141,22 @@ const LiveOrderBookTable: FC<LiveOrderBookTableProps> = ({ orderBook, status }) 
             </Table>
           </ScrollArea>
         </div>
-      </CardContent>
+      </div>
+    </>
+  );
+
+  if (variant === 'collapsibleContent') {
+    if (status === 'connecting') return loadingStateSkeleton;
+    if (status === 'error' || !orderBook || (!orderBook.asks.length && !orderBook.bids.length)) return errorOrNoDataState;
+    return <>{tableContent}</>;
+  }
+
+  // Default variant rendering (full Card)
+  return (
+    <Card className="w-full shadow-lg rounded-lg">
+      {status === 'connecting' && loadingStateSkeleton}
+      {(status === 'error' || (status !== 'connecting' && (!orderBook || (!orderBook.asks.length && !orderBook.bids.length)))) && errorOrNoDataState}
+      {status === 'connected' && orderBook && (orderBook.asks.length > 0 || orderBook.bids.length > 0) && tableContent}
     </Card>
   );
 };
