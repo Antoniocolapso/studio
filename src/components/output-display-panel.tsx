@@ -1,7 +1,7 @@
 
 "use client";
 
-import * as React from 'react'; // Added this line
+import * as React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import type { OutputParameters } from '@/types';
@@ -15,13 +15,13 @@ interface OutputDisplayPanelProps {
 
 // Helper to format currency
 const formatCurrency = (value: number) => {
-  if (isNaN(value) || !isFinite(value)) return "$0.00";
+  if (isNaN(value) || !isFinite(value)) return "$0.00"; // Handle NaN or Infinity gracefully
   return `$${value.toFixed(2)}`;
 };
 
 // Helper to format latency
 const formatLatency = (value: number) => {
-  if (isNaN(value) || !isFinite(value)) return "0 ms";
+  if (isNaN(value) || !isFinite(value)) return "0 ms"; // Handle NaN or Infinity
   return `${value.toFixed(2)} ms`;
 };
 
@@ -43,7 +43,7 @@ export default function OutputDisplayPanel({ outputParams, status, error }: Outp
       label: "Expected Slippage", 
       value: formatCurrency(outputParams.expectedSlippage), 
       rawValue: outputParams.expectedSlippage,
-      isPositiveCondition: (val: number) => val <= 0.01 && val >= 0 
+      isPositiveCondition: (val: number) => val <= 0.01 && val >= 0 // Example: slippage is "good" if very low
     },
     { label: "Expected Fees", value: formatCurrency(outputParams.expectedFees), rawValue: outputParams.expectedFees },
     { label: "Expected Market Impact", value: formatCurrency(outputParams.expectedMarketImpact), rawValue: outputParams.expectedMarketImpact },
@@ -68,7 +68,7 @@ export default function OutputDisplayPanel({ outputParams, status, error }: Outp
               <p className={cn(
                   "text-sm font-medium",
                   item.isPositiveCondition && typeof item.rawValue === 'number' && item.isPositiveCondition(item.rawValue) && status === 'connected' 
-                    ? "text-green-600 dark:text-green-400" 
+                    ? "text-green-600 dark:text-green-400" // Using Tailwind classes directly for accent
                     : "text-foreground"
                 )}
               >

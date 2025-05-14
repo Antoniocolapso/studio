@@ -51,29 +51,39 @@ export default function HomePage() {
 
     if (!currentOrderBook || currentInputs.quantity <= 0) {
       const latency = performance.now() - startTime;
-      return { ...initialOutputParams, internalLatency: latency };
+      return { 
+        expectedSlippage: 0,
+        expectedFees: 0,
+        expectedMarketImpact: 0, // Placeholder
+        netCost: 0,
+        makerTakerProportion: 'N/A', // Placeholder
+        internalLatency: latency 
+      };
     }
 
     const { asks, bids } = currentOrderBook;
     let calculatedSlippage = 0;
     let calculatedFees = 0;
     
+    // Simplified slippage and fee calculation
     if (asks.length > 0 && bids.length > 0) {
       const bestAskPrice = parseFloat(asks[0][0]);
       const bestBidPrice = parseFloat(bids[0][0]);
       const midPrice = (bestAskPrice + bestBidPrice) / 2;
       
+      // Example: slippage based on spread and quantity (very simplified)
       calculatedSlippage = (bestAskPrice - midPrice) * currentInputs.quantity;
 
+      // Example: fee calculation
       const feePercentage = parseFloat(currentInputs.feeTier.replace('%', '')) / 100;
       if (!isNaN(feePercentage)) {
         calculatedFees = currentInputs.quantity * bestAskPrice * feePercentage;
       }
     }
     
-    const marketImpact = 0; 
-    const netCost = calculatedSlippage + calculatedFees + marketImpact;
-    const makerTaker = "50% Taker / 50% Maker"; 
+    const marketImpactPlaceholder = 0; // Placeholder for Almgren-Chriss model output
+    const netCost = calculatedSlippage + calculatedFees + marketImpactPlaceholder;
+    const makerTakerPlaceholder = "N/A"; // Placeholder for logistic regression output
 
     const endTime = performance.now();
     const latency = endTime - startTime;
@@ -81,9 +91,9 @@ export default function HomePage() {
     return {
       expectedSlippage: isNaN(calculatedSlippage) ? 0 : calculatedSlippage,
       expectedFees: isNaN(calculatedFees) ? 0 : calculatedFees,
-      expectedMarketImpact: marketImpact,
+      expectedMarketImpact: marketImpactPlaceholder,
       netCost: isNaN(netCost) ? 0 : netCost,
-      makerTakerProportion: makerTaker,
+      makerTakerProportion: makerTakerPlaceholder,
       internalLatency: latency,
     };
   }, []);
@@ -93,8 +103,12 @@ export default function HomePage() {
       const newOutputs = calculateOutputs(orderBook, inputParams);
       setOutputParams(newOutputs);
     } else if (status !== 'connecting') {
-      const currentLatency = outputParams.internalLatency;
-      setOutputParams({...initialOutputParams, internalLatency: status === 'error' ? currentLatency : 0 });
+      // Preserve latency if it was already calculated, otherwise set to 0 or initial
+      const currentLatency = outputParams.internalLatency; 
+      setOutputParams({
+        ...initialOutputParams, 
+        internalLatency: status === 'error' && currentLatency > 0 ? currentLatency : 0 
+      });
     }
   }, [orderBook, inputParams, status, calculateOutputs, outputParams.internalLatency]);
   
@@ -111,6 +125,7 @@ export default function HomePage() {
 
   const handleInputChange = (newParams: InputParameters) => {
     setInputParams(newParams);
+    // Recalculate if order book data is available
     if (orderBook && status === 'connected') {
        const newOutputs = calculateOutputs(orderBook, newParams);
        setOutputParams(newOutputs);

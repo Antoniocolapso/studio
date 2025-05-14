@@ -22,7 +22,7 @@ export interface OutputParameters {
   expectedFees: number;
   expectedMarketImpact: number;
   netCost: number;
-  makerTakerProportion: string;
+  makerTakerProportion: string; // e.g., "50% Taker / 50% Maker" or "N/A"
   internalLatency: number; // in ms
 }
 
