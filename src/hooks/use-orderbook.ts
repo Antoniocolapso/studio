@@ -1,9 +1,11 @@
+
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import type { OrderBookData, WebSocketStatus } from '@/types';
 
-const WEBSOCKET_URL = 'wss://ws.gomarket-cpp.goquant.io/ws/l2-orderbook/okx/BTC-USDT-SWAP';
+const DEFAULT_WEBSOCKET_URL = 'wss://ws.gomarket-cpp.goquant.io/ws/l2-orderbook/okx/BTC-USDT-SWAP';
+const WEBSOCKET_URL = process.env.NEXT_PUBLIC_WEBSOCKET_URL || DEFAULT_WEBSOCKET_URL;
 const RECONNECT_DELAY = 5000; // 5 seconds
 
 export function useOrderbook() {
