@@ -3,17 +3,19 @@
 import { useState, useEffect, useCallback } from 'react';
 import TradeInputPanel from '@/components/trade-input-panel';
 import OutputDisplayPanel from '@/components/output-display-panel';
+import OrderBookChart from '@/components/order-book-chart';
+import { DarkModeToggle } from '@/components/dark-mode-toggle';
 import { useOrderbook } from '@/hooks/use-orderbook';
 import type { InputParameters, OutputParameters, OrderBookData } from '@/types';
-import { useToast } from "@/hooks/use-toast"; // Shadcn toast
+import { useToast } from "@/hooks/use-toast";
 
 const initialInputParams: InputParameters = {
   exchange: 'OKX',
   spotAsset: 'BTC-USDT-SWAP',
   orderType: 'market',
-  quantity: 0.00167, // Approx 100 USD if 1 BTC = $60k
+  quantity: 0.00167, 
   volatility: undefined,
-  feeTier: '0.1%', // Example fee tier
+  feeTier: '0.1%',
 };
 
 const initialOutputParams: OutputParameters = {
@@ -30,6 +32,16 @@ export default function HomePage() {
   const [outputParams, setOutputParams] = useState<OutputParameters>(initialOutputParams);
   const { orderBook, status, error } = useOrderbook();
   const { toast } = useToast();
+  const [currentTime, setCurrentTime] = useState<string | null>(null);
+
+  useEffect(() => {
+    setCurrentTime(new Date().toLocaleTimeString());
+    const timer = setInterval(() => {
+      setCurrentTime(new Date().toLocaleTimeString());
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
+
 
   const calculateOutputs = useCallback((currentOrderBook: OrderBookData | null, currentInputs: InputParameters): OutputParameters => {
     const startTime = performance.now();
@@ -42,27 +54,23 @@ export default function HomePage() {
     const { asks, bids } = currentOrderBook;
     let calculatedSlippage = 0;
     let calculatedFees = 0;
-    // Simplified calculations
-    // Assuming a buy order for slippage calculation
+    
     if (asks.length > 0 && bids.length > 0) {
       const bestAskPrice = parseFloat(asks[0][0]);
       const bestBidPrice = parseFloat(bids[0][0]);
       const midPrice = (bestAskPrice + bestBidPrice) / 2;
       
-      // Simplified slippage for a market buy: (execution price - mid price) * quantity
-      // Assume execution at best ask for this small quantity
       calculatedSlippage = (bestAskPrice - midPrice) * currentInputs.quantity;
 
-      // Fees
       const feePercentage = parseFloat(currentInputs.feeTier.replace('%', '')) / 100;
       if (!isNaN(feePercentage)) {
         calculatedFees = currentInputs.quantity * bestAskPrice * feePercentage;
       }
     }
     
-    const marketImpact = 0; // Placeholder for Almgren-Chriss model
+    const marketImpact = 0; 
     const netCost = calculatedSlippage + calculatedFees + marketImpact;
-    const makerTaker = "50% Taker / 50% Maker"; // Placeholder for logistic regression
+    const makerTaker = "50% Taker / 50% Maker"; 
 
     const endTime = performance.now();
     const latency = endTime - startTime;
@@ -82,13 +90,11 @@ export default function HomePage() {
       const newOutputs = calculateOutputs(orderBook, inputParams);
       setOutputParams(newOutputs);
     } else if (status !== 'connecting') {
-       // Reset outputs if disconnected or error, but keep latency if measurable
       const currentLatency = outputParams.internalLatency;
       setOutputParams({...initialOutputParams, internalLatency: status === 'error' ? currentLatency : 0 });
     }
   }, [orderBook, inputParams, status, calculateOutputs, outputParams.internalLatency]);
   
-  // Toast notifications for WebSocket status changes
   useEffect(() => {
     if (status === 'connected') {
       toast({ title: "WebSocket Connected", description: "Receiving real-time market data." });
@@ -102,7 +108,6 @@ export default function HomePage() {
 
   const handleInputChange = (newParams: InputParameters) => {
     setInputParams(newParams);
-    // Recalculate immediately with new inputs and current orderbook
     if (orderBook && status === 'connected') {
        const newOutputs = calculateOutputs(orderBook, newParams);
        setOutputParams(newOutputs);
@@ -110,17 +115,26 @@ export default function HomePage() {
   };
 
   return (
-    <div className="min-h-screen p-4 md:p-8 flex flex-col items-center bg-background">
-      <header className="mb-8 text-center">
-        <h1 className="text-4xl font-bold text-primary">TradeFlow</h1>
-        <p className="text-muted-foreground">Real-time Trade Simulator</p>
+    <div className="min-h-screen p-4 md:p-8 flex flex-col items-center bg-background transition-colors duration-300">
+      <header className="w-full max-w-6xl mb-8">
+        <div className="flex justify-between items-center">
+          <div className="text-left">
+            <h1 className="text-4xl font-bold text-primary">TradeFlow</h1>
+            <p className="text-muted-foreground">Real-time Trade Execution Simulator</p>
+          </div>
+          <div className="flex items-center gap-4">
+             {currentTime && <span className="text-sm text-muted-foreground hidden md:inline">{currentTime}</span>}
+            <DarkModeToggle />
+          </div>
+        </div>
       </header>
-      <main className="w-full max-w-6xl grid grid-cols-1 md:grid-cols-2 gap-8">
-        <div className="w-full">
+      <main className="w-full max-w-6xl grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-1">
           <TradeInputPanel inputParams={inputParams} onInputChange={handleInputChange} />
         </div>
-        <div className="w-full">
+        <div className="lg:col-span-2 space-y-6">
           <OutputDisplayPanel outputParams={outputParams} status={status} error={error} />
+          <OrderBookChart orderBook={orderBook} />
         </div>
       </main>
       <footer className="mt-12 text-center text-sm text-muted-foreground">
