@@ -118,8 +118,8 @@ export default function HomePage() {
   };
 
   return (
-    <div className="min-h-screen p-4 md:p-8 flex flex-col items-center bg-background transition-colors duration-300">
-      <header className="w-full max-w-6xl mb-8">
+    <div className="min-h-screen flex flex-col bg-background transition-colors duration-300">
+      <header className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 mb-4 border-b border-border">
         <div className="flex justify-between items-center">
           <div className="text-left">
             <h1 className="text-4xl font-bold text-primary">TradeFlow</h1>
@@ -131,18 +131,22 @@ export default function HomePage() {
           </div>
         </div>
       </header>
-      <main className="w-full max-w-6xl grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-1">
-          <TradeInputPanel inputParams={inputParams} onInputChange={handleInputChange} />
-        </div>
-        <div className="lg:col-span-2 space-y-6">
-          <OutputDisplayPanel outputParams={outputParams} status={status} error={error} />
-          <LiveOrderBookTable orderBook={orderBook} status={status} />
-          <MarketDepthChart orderBook={orderBook} status={status} />
+      <main className="flex-grow w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          {/* Left Column */}
+          <div className="lg:col-span-4 xl:col-span-3 space-y-6">
+            <TradeInputPanel inputParams={inputParams} onInputChange={handleInputChange} />
+            <OutputDisplayPanel outputParams={outputParams} status={status} error={error} />
+          </div>
+          {/* Right Column */}
+          <div className="lg:col-span-8 xl:col-span-9 space-y-6">
+            <LiveOrderBookTable orderBook={orderBook} status={status} />
+            <MarketDepthChart orderBook={orderBook} status={status} />
+          </div>
         </div>
       </main>
-      <footer className="mt-12 text-center text-sm text-muted-foreground">
-        <p>&copy; {new Date().getFullYear()} TradeFlow. Made with passion ❤️ by Omm [aka Antonio Colapso]</p>
+      <footer className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 mt-auto border-t border-border">
+        <p className="text-center text-sm text-muted-foreground">&copy; {new Date().getFullYear()} TradeFlow. Made with passion ❤️ by Omm [aka Antonio Colapso]</p>
       </footer>
     </div>
   );
