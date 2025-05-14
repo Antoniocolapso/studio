@@ -1,9 +1,9 @@
 
 "use client";
 
+import * as React from 'react'; // Added this line
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input"; // Using Input for consistent styling, but disabled
+import { Separator } from "@/components/ui/separator";
 import type { OutputParameters } from '@/types';
 import { cn } from "@/lib/utils";
 
@@ -26,40 +26,57 @@ const formatLatency = (value: number) => {
 };
 
 export default function OutputDisplayPanel({ outputParams, status, error }: OutputDisplayPanelProps) {
-  const renderValue = (value: string) => {
-    if (status === 'connecting') return "Connecting...";
-    if (status === 'error') return "Error";
-    if (status === 'disconnected') return "Disconnected";
-    if (value === "$NaN" || value.includes("NaN")) return "Calculating..."; // Handles initial state or bad calc
-    return value;
+  const renderValue = (value: string | number, originalValue?: number) => {
+    if (status === 'connecting') return <span className="text-muted-foreground">Connecting...</span>;
+    if (status === 'error') return <span className="text-destructive">Error</span>;
+    if (status === 'disconnected') return <span className="text-yellow-600 dark:text-yellow-400">Disconnected</span>;
+    
+    const displayValue = typeof value === 'number' ? value.toString() : value;
+    if (displayValue === "$NaN" || displayValue.includes("NaN") || (typeof originalValue === 'number' && (isNaN(originalValue) || !isFinite(originalValue)))) {
+      return <span className="text-muted-foreground">Calculating...</span>;
+    }
+    return displayValue;
   };
   
+  const stats = [
+    { 
+      label: "Expected Slippage", 
+      value: formatCurrency(outputParams.expectedSlippage), 
+      rawValue: outputParams.expectedSlippage,
+      isPositiveCondition: (val: number) => val <= 0.01 && val >= 0 
+    },
+    { label: "Expected Fees", value: formatCurrency(outputParams.expectedFees), rawValue: outputParams.expectedFees },
+    { label: "Expected Market Impact", value: formatCurrency(outputParams.expectedMarketImpact), rawValue: outputParams.expectedMarketImpact },
+    { label: "Net Cost", value: formatCurrency(outputParams.netCost), rawValue: outputParams.netCost },
+    { label: "Maker/Taker Proportion", value: outputParams.makerTakerProportion || "N/A", rawValue: outputParams.makerTakerProportion },
+    { label: "Internal Latency (Calc Time)", value: formatLatency(outputParams.internalLatency), rawValue: outputParams.internalLatency },
+  ];
+
   return (
-    <Card className="w-full shadow-lg">
+    <Card className="w-full shadow-lg rounded-lg">
       <CardHeader>
-        <CardTitle className="text-2xl font-semibold">Estimated Costs & Impact</CardTitle>
+        <CardTitle className="text-xl font-semibold">Trade Execution Estimates</CardTitle>
         {status === 'connecting' && <p className="text-sm text-muted-foreground">Attempting to connect to WebSocket...</p>}
         {status === 'disconnected' && <p className="text-sm text-yellow-600 dark:text-yellow-400">WebSocket disconnected. Attempting to reconnect...</p>}
         {error && <p className="text-sm text-destructive">{error}</p>}
       </CardHeader>
-      <CardContent className="space-y-6">
-        {[
-          { label: "Expected Slippage", value: formatCurrency(outputParams.expectedSlippage), isPositive: outputParams.expectedSlippage <=0.01 && outputParams.expectedSlippage >=0 },
-          { label: "Expected Fees", value: formatCurrency(outputParams.expectedFees) },
-          { label: "Expected Market Impact", value: formatCurrency(outputParams.expectedMarketImpact) },
-          { label: "Net Cost", value: formatCurrency(outputParams.netCost) },
-          { label: "Maker/Taker Proportion", value: outputParams.makerTakerProportion || "N/A" },
-          { label: "Internal Latency (Processing Time)", value: formatLatency(outputParams.internalLatency) },
-        ].map((item, index) => (
-          <div className="space-y-2" key={index}>
-            <Label htmlFor={`output-${index}`}>{item.label}</Label>
-            <Input 
-              id={`output-${index}`} 
-              value={renderValue(item.value)} 
-              disabled 
-              className={cn({ "text-green-600 dark:text-green-400": item.isPositive && status === 'connected' })}
-            />
-          </div>
+      <CardContent className="space-y-3 pt-2">
+        {stats.map((item, index) => (
+          <React.Fragment key={index}>
+            <div className="flex justify-between items-center py-1">
+              <p className="text-sm text-muted-foreground">{item.label}</p>
+              <p className={cn(
+                  "text-sm font-medium",
+                  item.isPositiveCondition && typeof item.rawValue === 'number' && item.isPositiveCondition(item.rawValue) && status === 'connected' 
+                    ? "text-green-600 dark:text-green-400" 
+                    : "text-foreground"
+                )}
+              >
+                {renderValue(item.value, typeof item.rawValue === 'number' ? item.rawValue : undefined)}
+              </p>
+            </div>
+            {index < stats.length - 1 && <Separator />}
+          </React.Fragment>
         ))}
       </CardContent>
     </Card>
