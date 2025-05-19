@@ -76,7 +76,7 @@ const slippageEstimatorFlow = ai.defineFlow(
     inputSchema: SlippageEstimatorInputSchema,
     outputSchema: SlippageEstimatorOutputSchema,
   },
-  async (input: SlippageEstimatorInput) => {
+  async (input: SlippageEstimatorInput): Promise<SlippageEstimatorOutput> => {
     // Ensure numerical inputs for the prompt
     const processedInput = {
       ...input,
@@ -88,17 +88,32 @@ const slippageEstimatorFlow = ai.defineFlow(
       })),
     };
 
-    const {output} = await slippageEstimationPrompt(processedInput);
-    if (!output) {
-      // Fallback or error handling if the prompt fails to produce structured output
-      console.error("Slippage estimation prompt did not return structured output.");
+    try {
+      const {output} = await slippageEstimationPrompt(processedInput);
+      if (!output) {
+        console.error("Slippage estimation prompt did not return structured output.");
+        return {
+          estimatedSlippageValue: 0,
+          confidence: 'low',
+          reasoning: 'AI model did not return structured output.',
+        };
+      }
+      return output;
+    } catch (error: any) {
+      console.error("Error during AI slippage estimation:", error);
+      let reasoning = 'Failed to get estimation from AI model due to an unexpected error.';
+      // Check if the error message indicates a rate limit
+      if (error.message && (error.message.includes("429") || error.message.toLowerCase().includes("too many requests") || error.message.toLowerCase().includes("quota exceeded"))) {
+        reasoning = 'AI estimation failed due to API rate limits. Please try again later or check your API plan. You may need to wait a few minutes.';
+      } else if (error.message) {
+        reasoning = `AI estimation failed: ${error.message}`;
+      }
       return {
-        estimatedSlippageValue: 0, // Default to 0 slippage on error
+        estimatedSlippageValue: 0,
         confidence: 'low',
-        reasoning: 'Failed to get estimation from AI model.',
+        reasoning: reasoning,
       };
     }
-    return output;
   }
 );
 
