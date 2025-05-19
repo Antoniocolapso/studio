@@ -13,7 +13,7 @@ interface OutputDisplayPanelProps {
   outputParams: OutputParameters;
   status: string;
   error: string | null;
-  isCalculating: boolean;
+  isCalculatingOutputs: boolean; // Renamed for clarity
 }
 
 // Helper to format currency
@@ -28,13 +28,12 @@ const formatLatency = (value: number) => {
   return `${value.toFixed(2)} ms`;
 };
 
-export default function OutputDisplayPanel({ outputParams, status, error, isCalculating }: OutputDisplayPanelProps) {
+export default function OutputDisplayPanel({ outputParams, status, error, isCalculatingOutputs }: OutputDisplayPanelProps) {
   const renderValue = (value: string | number | undefined, originalValue?: number | string) => {
     if (status === 'connecting') return <span className="text-muted-foreground">Connecting...</span>;
-    if (status === 'error') return <span className="text-destructive">Error</span>;
+    if (status === 'error') return <span className="text-destructive dark:text-red-500">Error</span>;
     if (status === 'disconnected') return <span className="text-yellow-600 dark:text-yellow-400">Disconnected</span>;
-    if (isCalculating && (value === undefined || (typeof value === 'number' && isNaN(value)))) return <span className="text-muted-foreground">Calculating...</span>;
-
+    if (isCalculatingOutputs && (value === undefined || (typeof value === 'number' && isNaN(value)))) return <span className="text-muted-foreground">Calculating...</span>;
 
     const displayValue = typeof value === 'number' ? value.toString() : value;
      if (displayValue === "Calculating..." || displayValue === undefined || String(displayValue).includes("NaN") || (typeof originalValue === 'number' && (isNaN(originalValue) || !isFinite(originalValue)))) {
@@ -43,29 +42,19 @@ export default function OutputDisplayPanel({ outputParams, status, error, isCalc
     return displayValue;
   };
 
-  const confidenceColor = (confidence: string | undefined) => {
-    switch (confidence) {
-      case 'high': return 'text-green-600 dark:text-green-400';
-      case 'medium': return 'text-yellow-600 dark:text-yellow-400';
-      case 'low': return 'text-red-600 dark:text-red-400';
-      default: return 'text-muted-foreground';
-    }
-  };
-
   const stats = [
     {
-      label: "Expected Slippage (AI)",
+      label: "Expected Slippage",
       value: formatCurrency(outputParams.expectedSlippage),
       rawValue: outputParams.expectedSlippage,
       isPositiveCondition: (val: number | undefined) => val !== undefined && val <= 0.01 && val >= 0,
-      tooltip: outputParams.aiSlippageReasoning,
-      confidence: outputParams.aiSlippageConfidence,
+      tooltip: "Estimated cost difference due to price movement caused by trade volume, based on current order book depth.",
     },
-    { label: "Expected Fees", value: formatCurrency(outputParams.expectedFees), rawValue: outputParams.expectedFees },
+    { label: "Expected Fees", value: formatCurrency(outputParams.expectedFees), rawValue: outputParams.expectedFees, tooltip: "Calculated based on estimated execution price and fee tier." },
     { label: "Expected Market Impact", value: formatCurrency(outputParams.expectedMarketImpact), rawValue: outputParams.expectedMarketImpact, tooltip: "Almgren-Chriss model (placeholder)" },
-    { label: "Net Cost", value: formatCurrency(outputParams.netCost), rawValue: outputParams.netCost },
+    { label: "Net Cost", value: formatCurrency(outputParams.netCost), rawValue: outputParams.netCost, tooltip: "Total estimated cost: Slippage + Fees + Market Impact." },
     { label: "Maker/Taker Proportion", value: outputParams.makerTakerProportion || "N/A", rawValue: outputParams.makerTakerProportion, tooltip: "Logistic regression (placeholder)" },
-    { label: "Internal Latency (Calc Time)", value: formatLatency(outputParams.internalLatency), rawValue: outputParams.internalLatency },
+    { label: "Internal Latency (Calc Time)", value: formatLatency(outputParams.internalLatency), rawValue: outputParams.internalLatency, tooltip: "Time taken for frontend calculations." },
   ];
 
   return (
@@ -74,8 +63,9 @@ export default function OutputDisplayPanel({ outputParams, status, error, isCalc
         <CardTitle className="text-xl font-semibold">Trade Execution Estimates</CardTitle>
         {status === 'connecting' && <CardDescription className="text-sm text-muted-foreground">Attempting to connect to WebSocket...</CardDescription>}
         {status === 'disconnected' && <CardDescription className="text-sm text-yellow-600 dark:text-yellow-400">WebSocket disconnected. Attempting to reconnect...</CardDescription>}
-        {error && <CardDescription className="text-sm text-destructive">{error}</CardDescription>}
-        {isCalculating && status === 'connected' && <CardDescription className="text-sm text-muted-foreground">Calculating estimates...</CardDescription>}
+        {error && <CardDescription className="text-sm text-destructive dark:text-red-500">{error}</CardDescription>}
+        {isCalculatingOutputs && status === 'connected' && <CardDescription className="text-sm text-muted-foreground">Calculating estimates...</CardDescription>}
+         {status === 'connected' && !isCalculatingOutputs && !error && <CardDescription className="text-sm text-muted-foreground">Estimates based on live market data.</CardDescription>}
       </CardHeader>
       <CardContent className="space-y-3 pt-2">
         <TooltipProvider>
@@ -91,18 +81,13 @@ export default function OutputDisplayPanel({ outputParams, status, error, isCalc
                       </TooltipTrigger>
                       <TooltipContent side="top" className="max-w-xs">
                         <p className="text-xs">{item.tooltip}</p>
-                        {item.confidence && (
-                           <p className={cn("text-xs mt-1", confidenceColor(item.confidence))}>
-                              AI Confidence: <span className="font-semibold">{item.confidence.toUpperCase()}</span>
-                           </p>
-                        )}
                       </TooltipContent>
                     </Tooltip>
                   )}
                 </div>
                 <p className={cn(
                     "text-sm font-medium",
-                    item.isPositiveCondition && typeof item.rawValue === 'number' && item.isPositiveCondition(item.rawValue) && status === 'connected' && !isCalculating
+                     item.isPositiveCondition && typeof item.rawValue === 'number' && item.isPositiveCondition(item.rawValue) && status === 'connected' && !isCalculatingOutputs
                       ? "text-green-600 dark:text-green-400"
                       : "text-foreground"
                   )}

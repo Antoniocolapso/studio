@@ -23,10 +23,8 @@ export interface OutputParameters {
   expectedFees: number | undefined; // Can be undefined or NaN while calculating
   expectedMarketImpact: number;
   netCost: number | undefined; // Can be undefined or NaN while calculating
-  makerTakerProportion: string; 
+  makerTakerProportion: string;
   internalLatency: number; // in ms
-  aiSlippageConfidence?: 'high' | 'medium' | 'low';
-  aiSlippageReasoning?: string;
 }
 
 export type WebSocketStatus = 'connecting' | 'connected' | 'disconnected' | 'error';

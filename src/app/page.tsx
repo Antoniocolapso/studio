@@ -6,7 +6,7 @@ import TradeInputPanel from '@/components/trade-input-panel';
 import OutputDisplayPanel from '@/components/output-display-panel';
 import { DarkModeToggle } from '@/components/dark-mode-toggle';
 import { useOrderbook } from '@/hooks/use-orderbook';
-import type { InputParameters, OutputParameters, OrderBookData, OrderBookLevel } from '@/types';
+import type { InputParameters, OutputParameters, OrderBookData } from '@/types';
 import { useToast } from "@/hooks/use-toast";
 import LiveOrderBookTable from '@/components/LiveOrderBookTable';
 import MarketDepthChart from '@/components/MarketDepthChart';
@@ -16,8 +16,6 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-import { estimateSlippage, type SlippageEstimatorInput } from '@/ai/flows/slippage-estimator-flow';
-
 
 const initialInputParams: InputParameters = {
   exchange: 'OKX',
@@ -35,8 +33,6 @@ const initialOutputParams: OutputParameters = {
   netCost: NaN,
   makerTakerProportion: 'N/A',
   internalLatency: 0,
-  aiSlippageConfidence: undefined,
-  aiSlippageReasoning: undefined,
 };
 
 export default function HomePage() {
@@ -45,7 +41,7 @@ export default function HomePage() {
   const { orderBook, status, error } = useOrderbook();
   const { toast } = useToast();
   const [currentTime, setCurrentTime] = useState<string | null>(null);
-  const [isCalculating, setIsCalculating] = useState(false);
+  const [isCalculatingOutputs, setIsCalculatingOutputs] = useState(false);
 
   useEffect(() => {
     setCurrentTime(new Date().toLocaleTimeString());
@@ -55,90 +51,69 @@ export default function HomePage() {
     return () => clearInterval(timer);
   }, []);
 
-
-  const calculateOutputs = useCallback(async (currentOrderBook: OrderBookData | null, currentInputs: InputParameters): Promise<OutputParameters> => {
+  const calculateOutputs = useCallback((currentOrderBook: OrderBookData | null, currentInputs: InputParameters): OutputParameters => {
     const startTime = performance.now();
-    setIsCalculating(true);
+    setIsCalculatingOutputs(true);
 
     let calculatedSlippage = NaN;
     let calculatedFees = NaN;
-    const calculatedMarketImpact = 0; 
+    const calculatedMarketImpact = 0; // Placeholder
     let netCost = NaN;
-    const makerTakerProportion = "N/A"; 
-    let aiSlippageConfidence: 'high' | 'medium' | 'low' | undefined = undefined;
-    let aiSlippageReasoning: string | undefined = undefined;
-
+    const makerTakerProportion = "N/A"; // Placeholder
 
     if (currentOrderBook && currentInputs.quantity > 0 && currentOrderBook.asks && currentOrderBook.asks.length > 0) {
-        const { asks, symbol } = currentOrderBook;
-        const quantityToTrade = currentInputs.quantity;
-        const bestAskPrice = parseFloat(asks[0][0]);
+      const { asks } = currentOrderBook;
+      let quantityToFill = currentInputs.quantity;
+      const bestAskPrice = parseFloat(asks[0][0]);
+      let totalCost = 0;
+      let quantityFilled = 0;
 
-        if (!isNaN(bestAskPrice)) {
-            const askBookSnapshot = asks.slice(0, 10).map((level: OrderBookLevel) => ({
-              price: parseFloat(level[0]),
-              quantity: parseFloat(level[1]),
-            }));
+      if (!isNaN(bestAskPrice)) {
+        for (const level of asks) {
+          const price = parseFloat(level[0]);
+          const availableQuantity = parseFloat(level[1]);
 
-            const estimatorInput: SlippageEstimatorInput = {
-              spotAsset: symbol,
-              tradeQuantity: quantityToTrade,
-              bestAskPrice: bestAskPrice,
-              askBookSnapshot: askBookSnapshot,
-            };
+          if (quantityToFill <= 0) break;
 
-            try {
-              console.log(`[${new Date().toISOString()}] Calling AI slippage estimator with input:`, estimatorInput);
-              const slippageResult = await estimateSlippage(estimatorInput);
-              console.log(`[${new Date().toISOString()}] AI slippage estimator result:`, slippageResult);
-              
-              calculatedSlippage = slippageResult.estimatedSlippageValue;
-              aiSlippageConfidence = slippageResult.confidence;
-              aiSlippageReasoning = slippageResult.reasoning;
-              
-              let vwap: number;
-              if (quantityToTrade > 0) {
-                 vwap = (bestAskPrice * quantityToTrade + calculatedSlippage) / quantityToTrade;
-              } else {
-                 vwap = bestAskPrice; 
-              }
-              
-              const feePercentage = parseFloat(currentInputs.feeTier.replace('%', '')) / 100;
-              if (!isNaN(feePercentage)) {
-                  calculatedFees = quantityToTrade * vwap * feePercentage;
-              }
-
-            } catch (aiError: any) { 
-              // This catch block is less likely to be hit if the Genkit flow handles its own errors.
-              // However, it's a safeguard.
-              console.error(`[${new Date().toISOString()}] Error calling estimateSlippage from page.tsx:`, aiError);
-              toast({ title: "AI Slippage Error", description: `Could not get AI slippage estimation: ${aiError.message || 'Unknown error'}. Check console.`, variant: "destructive" });
-              calculatedSlippage = 0; 
-              calculatedFees = 0;
-              aiSlippageConfidence = 'low';
-              aiSlippageReasoning = `AI estimation failed: ${aiError.message || 'Using fallback due to error in page.tsx.'}`;
-            }
-        } else {
-            calculatedSlippage = 0;
-            calculatedFees = 0;
+          const amountToTake = Math.min(quantityToFill, availableQuantity);
+          totalCost += amountToTake * price;
+          quantityFilled += amountToTake;
+          quantityToFill -= amountToTake;
         }
-    } else {
+
+        if (quantityFilled > 0) {
+          const vwap = totalCost / quantityFilled;
+          const costAtBestAsk = bestAskPrice * quantityFilled;
+          calculatedSlippage = totalCost - costAtBestAsk;
+
+          const feePercentage = parseFloat(currentInputs.feeTier.replace('%', '')) / 100;
+          if (!isNaN(feePercentage)) {
+            calculatedFees = totalCost * feePercentage; // Fees based on actual filled cost
+          } else {
+            calculatedFees = 0;
+          }
+        } else {
+          // Not enough liquidity to fill any part of the order
+          calculatedSlippage = 0;
+          calculatedFees = 0;
+        }
+      } else {
         calculatedSlippage = 0;
         calculatedFees = 0;
-        if (!currentOrderBook || (currentOrderBook.asks && currentOrderBook.asks.length === 0) || currentInputs.quantity <= 0) {
-            aiSlippageReasoning = "Not enough data to estimate (e.g., no order book, zero quantity).";
-            aiSlippageConfidence = 'low';
-        }
+      }
+    } else {
+      calculatedSlippage = 0;
+      calculatedFees = 0;
     }
-
+    
     calculatedSlippage = isNaN(calculatedSlippage) || !isFinite(calculatedSlippage) ? 0 : calculatedSlippage;
     calculatedFees = isNaN(calculatedFees) || !isFinite(calculatedFees) ? 0 : calculatedFees;
 
-    netCost = calculatedSlippage + calculatedFees + calculatedMarketImpact;
+    netCost = calculatedSlippage + calculatedFees + calculatedMarketImpact; // Market impact is currently 0
     netCost = isNaN(netCost) || !isFinite(netCost) ? 0 : netCost;
-
+    
     const latency = performance.now() - startTime;
-    setIsCalculating(false);
+    setIsCalculatingOutputs(false);
 
     return {
       expectedSlippage: calculatedSlippage,
@@ -147,44 +122,33 @@ export default function HomePage() {
       netCost: netCost,
       makerTakerProportion: makerTakerProportion,
       internalLatency: latency,
-      aiSlippageConfidence,
-      aiSlippageReasoning,
     };
-  }, [toast]);
+  }, []);
 
   useEffect(() => {
     if (status === 'connected' && orderBook) {
-      // Set initial state to NaN to show "Calculating..." for relevant fields
-      // and trigger isCalculating state for the OutputDisplayPanel
-      setIsCalculating(true); 
+      setIsCalculatingOutputs(true);
       setOutputParams(prev => ({
         ...prev,
         expectedSlippage: NaN,
         expectedFees: NaN,
         netCost: NaN,
-        aiSlippageConfidence: undefined,
-        aiSlippageReasoning: undefined,
-        // internalLatency can remain from previous or be reset if needed
       }));
-      calculateOutputs(orderBook, inputParams).then(newOutputs => {
-        setOutputParams(newOutputs);
-        // setIsCalculating(false); // isCalculating is set to false inside calculateOutputs
-      });
-    } else if (status !== 'connecting') { // e.g. 'disconnected' or 'error'
+      const newOutputs = calculateOutputs(orderBook, inputParams);
+      setOutputParams(newOutputs);
+    } else if (status !== 'connecting') {
       const currentLatency = outputParams.internalLatency;
-      setOutputParams({
+       setOutputParams({
         ...initialOutputParams,
-        expectedSlippage: 0, 
+        expectedSlippage: 0,
         expectedFees: 0,
         netCost: 0,
         internalLatency: status === 'error' && currentLatency > 0 ? currentLatency : 0,
-        aiSlippageReasoning: status === 'error' ? (error || "Connection error") : "WebSocket disconnected",
-        aiSlippageConfidence: 'low',
       });
-      setIsCalculating(false); // Ensure isCalculating is false if we are not connected/calculating
+      setIsCalculatingOutputs(false);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [orderBook, inputParams, status, error]); // Added error to deps as it's used in the else if block
+  }, [orderBook, inputParams, status, error, calculateOutputs]);
 
   useEffect(() => {
     if (status === 'connected') {
@@ -195,7 +159,6 @@ export default function HomePage() {
       toast({ title: "WebSocket Error", description: error, variant: "destructive" });
     }
   }, [status, error, toast]);
-
 
   const handleInputChange = (newParams: InputParameters) => {
     setInputParams(newParams);
@@ -218,7 +181,7 @@ export default function HomePage() {
       <main className="flex-grow w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
           <TradeInputPanel inputParams={inputParams} onInputChange={handleInputChange} />
-          <OutputDisplayPanel outputParams={outputParams} status={status} error={error} isCalculating={isCalculating} />
+          <OutputDisplayPanel outputParams={outputParams} status={status} error={error} isCalculatingOutputs={isCalculatingOutputs} />
         </div>
 
         <Accordion type="multiple" className="w-full space-y-6">
@@ -247,5 +210,3 @@ export default function HomePage() {
     </div>
   );
 }
-
-    

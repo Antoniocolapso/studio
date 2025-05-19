@@ -1,3 +1,4 @@
 
 // Flows will be imported for their side effects in this file.
-import './flows/slippage-estimator-flow';
+// No flows are currently active as the AI slippage estimator has been removed.
+// import './flows/slippage-estimator-flow';
