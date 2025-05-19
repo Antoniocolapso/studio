@@ -1,3 +1,3 @@
-
-// This file is intentionally left blank and will be removed.
-// The AI-based slippage estimator is being replaced by a local, deterministic model.
+// This file is intentionally blank as the AI slippage estimator has been removed
+// in favor of a local "walk the book" model.
+// It can be deleted from the project.

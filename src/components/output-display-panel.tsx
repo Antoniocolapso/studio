@@ -7,13 +7,14 @@ import { Separator } from "@/components/ui/separator";
 import type { OutputParameters } from '@/types';
 import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+// Removed import: import { predictSlippage, predictMakerTakerProportion } from '@/ai/flows/slippage-estimator-flow';
 import { Info } from 'lucide-react';
 
 interface OutputDisplayPanelProps {
   outputParams: OutputParameters;
   status: string;
   error: string | null;
-  isCalculatingOutputs: boolean; // Renamed for clarity
+  isCalculatingOutputs: boolean;
 }
 
 // Helper to format currency
@@ -51,9 +52,9 @@ export default function OutputDisplayPanel({ outputParams, status, error, isCalc
       tooltip: "Estimated cost difference due to price movement caused by trade volume, based on current order book depth.",
     },
     { label: "Expected Fees", value: formatCurrency(outputParams.expectedFees), rawValue: outputParams.expectedFees, tooltip: "Calculated based on estimated execution price and fee tier." },
-    { label: "Expected Market Impact", value: formatCurrency(outputParams.expectedMarketImpact), rawValue: outputParams.expectedMarketImpact, tooltip: "Almgren-Chriss model (placeholder)" },
+    { label: "Expected Market Impact", value: formatCurrency(outputParams.expectedMarketImpact), rawValue: outputParams.expectedMarketImpact, tooltip: "Placeholder (Almgren-Chriss model not implemented)." },
     { label: "Net Cost", value: formatCurrency(outputParams.netCost), rawValue: outputParams.netCost, tooltip: "Total estimated cost: Slippage + Fees + Market Impact." },
-    { label: "Maker/Taker Proportion", value: outputParams.makerTakerProportion || "N/A", rawValue: outputParams.makerTakerProportion, tooltip: "Logistic regression (placeholder)" },
+    { label: "Maker/Taker Proportion", value: outputParams.makerTakerProportion, rawValue: outputParams.makerTakerProportion, tooltip: "Placeholder (Logistic regression model not implemented)." },
     { label: "Internal Latency (Calc Time)", value: formatLatency(outputParams.internalLatency), rawValue: outputParams.internalLatency, tooltip: "Time taken for frontend calculations." },
   ];
 
