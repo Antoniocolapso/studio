@@ -55,48 +55,83 @@ export default function HomePage() {
   const calculateOutputs = useCallback((currentOrderBook: OrderBookData | null, currentInputs: InputParameters): OutputParameters => {
     const startTime = performance.now();
 
-    if (!currentOrderBook || currentInputs.quantity <= 0) {
-      const latency = performance.now() - startTime;
-      return { 
-        expectedSlippage: 0,
-        expectedFees: 0,
-        expectedMarketImpact: 0,
-        netCost: 0,
-        makerTakerProportion: 'N/A',
-        internalLatency: latency 
-      };
-    }
-
-    const { asks, bids } = currentOrderBook;
     let calculatedSlippage = 0;
     let calculatedFees = 0;
-    
-    if (asks.length > 0 && bids.length > 0) {
-      const bestAskPrice = parseFloat(asks[0][0]);
-      const bestBidPrice = parseFloat(bids[0][0]);
-      const midPrice = (bestAskPrice + bestBidPrice) / 2;
-      
-      calculatedSlippage = (bestAskPrice - midPrice) * currentInputs.quantity;
+    const calculatedMarketImpact = 0; // Almgren-Chriss model placeholder
+    let netCost = 0;
+    const makerTakerProportion = "N/A"; // Logistic regression placeholder
 
-      const feePercentage = parseFloat(currentInputs.feeTier.replace('%', '')) / 100;
-      if (!isNaN(feePercentage)) {
-        calculatedFees = currentInputs.quantity * bestAskPrice * feePercentage;
-      }
+    if (currentOrderBook && currentInputs.quantity > 0 && currentOrderBook.asks && currentOrderBook.asks.length > 0) {
+        const { asks } = currentOrderBook;
+        const quantityToTrade = currentInputs.quantity;
+
+        // --- Slippage Calculation (Market Buy Order - walking the asks) ---
+        let quantityRemaining = quantityToTrade;
+        let totalCostOfTrade = 0;
+        let quantityFilledFromBook = 0;
+        const bestAskPrice = parseFloat(asks[0][0]);
+
+        if (!isNaN(bestAskPrice)) {
+            for (const askLevel of asks) {
+                const price = parseFloat(askLevel[0]);
+                const availableQuantityAtLevel = parseFloat(askLevel[1]);
+
+                if (isNaN(price) || isNaN(availableQuantityAtLevel) || availableQuantityAtLevel <= 0) {
+                    continue; // Skip invalid levels
+                }
+
+                if (quantityRemaining <= 0) {
+                    break; // Order filled
+                }
+
+                const quantityToFillAtLevel = Math.min(quantityRemaining, availableQuantityAtLevel);
+                
+                totalCostOfTrade += quantityToFillAtLevel * price;
+                quantityFilledFromBook += quantityToFillAtLevel;
+                quantityRemaining -= quantityToFillAtLevel;
+            }
+
+            if (quantityFilledFromBook > 0) {
+                const vwap = totalCostOfTrade / quantityFilledFromBook;
+                // Slippage is the total extra cost incurred compared to filling at the best ask price.
+                calculatedSlippage = (vwap - bestAskPrice) * quantityFilledFromBook;
+
+                if (quantityFilledFromBook < quantityToTrade) {
+                    console.warn(`Order for ${quantityToTrade} could only be partially filled (${quantityFilledFromBook}) from the visible order book. Slippage calculation is based on the filled portion.`);
+                }
+                 // --- Fee Calculation (based on filled quantity and VWAP) ---
+                const feePercentage = parseFloat(currentInputs.feeTier.replace('%', '')) / 100;
+                if (!isNaN(feePercentage)) {
+                    calculatedFees = quantityFilledFromBook * vwap * feePercentage;
+                }
+
+            } else {
+                // Cannot fill any quantity from the book (e.g. book is empty or prices are invalid)
+                calculatedSlippage = 0;
+                calculatedFees = 0;
+            }
+        } else {
+             // Best ask price is NaN, cannot calculate slippage or fees meaningfully
+            calculatedSlippage = 0;
+            calculatedFees = 0;
+        }
     }
-    
-    const marketImpactPlaceholder = 0; 
-    const netCost = calculatedSlippage + calculatedFees + marketImpactPlaceholder;
-    const makerTakerPlaceholder = "N/A";
 
-    const endTime = performance.now();
-    const latency = endTime - startTime;
+    // Ensure calculatedSlippage and calculatedFees are not NaN/Infinity
+    calculatedSlippage = isNaN(calculatedSlippage) || !isFinite(calculatedSlippage) ? 0 : calculatedSlippage;
+    calculatedFees = isNaN(calculatedFees) || !isFinite(calculatedFees) ? 0 : calculatedFees;
+    
+    netCost = calculatedSlippage + calculatedFees + calculatedMarketImpact;
+    netCost = isNaN(netCost) || !isFinite(netCost) ? 0 : netCost;
+
+    const latency = performance.now() - startTime;
 
     return {
-      expectedSlippage: isNaN(calculatedSlippage) ? 0 : calculatedSlippage,
-      expectedFees: isNaN(calculatedFees) ? 0 : calculatedFees,
-      expectedMarketImpact: marketImpactPlaceholder,
-      netCost: isNaN(netCost) ? 0 : netCost,
-      makerTakerProportion: makerTakerPlaceholder,
+      expectedSlippage: calculatedSlippage,
+      expectedFees: calculatedFees,
+      expectedMarketImpact: calculatedMarketImpact,
+      netCost: netCost,
+      makerTakerProportion: makerTakerProportion,
       internalLatency: latency,
     };
   }, []);
@@ -127,6 +162,7 @@ export default function HomePage() {
 
   const handleInputChange = (newParams: InputParameters) => {
     setInputParams(newParams);
+    // Recalculate if order book data is available
     if (orderBook && status === 'connected') {
        const newOutputs = calculateOutputs(orderBook, newParams);
        setOutputParams(newOutputs);
