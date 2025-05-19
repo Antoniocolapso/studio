@@ -16,7 +16,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-import { estimateSlippage, SlippageEstimatorInput } from '@/ai/flows/slippage-estimator-flow';
+import { estimateSlippage, type SlippageEstimatorInput } from '@/ai/flows/slippage-estimator-flow';
 
 
 const initialInputParams: InputParameters = {
@@ -29,11 +29,11 @@ const initialInputParams: InputParameters = {
 };
 
 const initialOutputParams: OutputParameters = {
-  expectedSlippage: NaN, // Initialize with NaN to indicate "calculating"
+  expectedSlippage: NaN,
   expectedFees: NaN,
-  expectedMarketImpact: 0, // Placeholder
+  expectedMarketImpact: 0,
   netCost: NaN,
-  makerTakerProportion: 'N/A', // Placeholder
+  makerTakerProportion: 'N/A',
   internalLatency: 0,
   aiSlippageConfidence: undefined,
   aiSlippageReasoning: undefined,
@@ -62,9 +62,9 @@ export default function HomePage() {
 
     let calculatedSlippage = NaN;
     let calculatedFees = NaN;
-    const calculatedMarketImpact = 0; // Almgren-Chriss model placeholder
+    const calculatedMarketImpact = 0; 
     let netCost = NaN;
-    const makerTakerProportion = "N/A"; // Logistic regression placeholder
+    const makerTakerProportion = "N/A"; 
     let aiSlippageConfidence: 'high' | 'medium' | 'low' | undefined = undefined;
     let aiSlippageReasoning: string | undefined = undefined;
 
@@ -75,7 +75,6 @@ export default function HomePage() {
         const bestAskPrice = parseFloat(asks[0][0]);
 
         if (!isNaN(bestAskPrice)) {
-            // Prepare input for AI slippage estimator
             const askBookSnapshot = asks.slice(0, 10).map((level: OrderBookLevel) => ({
               price: parseFloat(level[0]),
               quantity: parseFloat(level[1]),
@@ -89,22 +88,19 @@ export default function HomePage() {
             };
 
             try {
+              console.log(`[${new Date().toISOString()}] Calling AI slippage estimator with input:`, estimatorInput);
               const slippageResult = await estimateSlippage(estimatorInput);
+              console.log(`[${new Date().toISOString()}] AI slippage estimator result:`, slippageResult);
+              
               calculatedSlippage = slippageResult.estimatedSlippageValue;
               aiSlippageConfidence = slippageResult.confidence;
               aiSlippageReasoning = slippageResult.reasoning;
-
-              // Fee Calculation (based on AI estimated execution)
-              // Assuming slippageResult.estimatedSlippageValue is the total slippage amount.
-              // The total cost would be (bestAskPrice * quantityToTrade) + slippage.
-              // The average execution price (VWAP) would be ((bestAskPrice * quantityToTrade) + slippage) / quantityToTrade.
-              // This simplified VWAP might not be perfectly accurate if the LLM doesn't "walk the book" exactly.
               
               let vwap: number;
               if (quantityToTrade > 0) {
                  vwap = (bestAskPrice * quantityToTrade + calculatedSlippage) / quantityToTrade;
               } else {
-                 vwap = bestAskPrice; // Avoid division by zero if quantity is somehow zero
+                 vwap = bestAskPrice; 
               }
               
               const feePercentage = parseFloat(currentInputs.feeTier.replace('%', '')) / 100;
@@ -112,23 +108,27 @@ export default function HomePage() {
                   calculatedFees = quantityToTrade * vwap * feePercentage;
               }
 
-            } catch (aiError) {
-              console.error("AI Slippage Estimation Error:", aiError);
-              toast({ title: "AI Slippage Error", description: "Could not get AI slippage estimation.", variant: "destructive" });
-              // Fallback to simpler calculation or 0 if AI fails
+            } catch (aiError: any) { 
+              // This catch block is less likely to be hit if the Genkit flow handles its own errors.
+              // However, it's a safeguard.
+              console.error(`[${new Date().toISOString()}] Error calling estimateSlippage from page.tsx:`, aiError);
+              toast({ title: "AI Slippage Error", description: `Could not get AI slippage estimation: ${aiError.message || 'Unknown error'}. Check console.`, variant: "destructive" });
               calculatedSlippage = 0; 
               calculatedFees = 0;
               aiSlippageConfidence = 'low';
-              aiSlippageReasoning = 'AI estimation failed, using fallback.';
+              aiSlippageReasoning = `AI estimation failed: ${aiError.message || 'Using fallback due to error in page.tsx.'}`;
             }
         } else {
             calculatedSlippage = 0;
             calculatedFees = 0;
         }
     } else {
-       // Set to 0 if no order book or quantity is 0, rather than NaN, to avoid "Calculating..." indefinitely
         calculatedSlippage = 0;
         calculatedFees = 0;
+        if (!currentOrderBook || (currentOrderBook.asks && currentOrderBook.asks.length === 0) || currentInputs.quantity <= 0) {
+            aiSlippageReasoning = "Not enough data to estimate (e.g., no order book, zero quantity).";
+            aiSlippageConfidence = 'low';
+        }
     }
 
     calculatedSlippage = isNaN(calculatedSlippage) || !isFinite(calculatedSlippage) ? 0 : calculatedSlippage;
@@ -154,7 +154,9 @@ export default function HomePage() {
 
   useEffect(() => {
     if (status === 'connected' && orderBook) {
-      // Set initial state to NaN to show "Calculating..."
+      // Set initial state to NaN to show "Calculating..." for relevant fields
+      // and trigger isCalculating state for the OutputDisplayPanel
+      setIsCalculating(true); 
       setOutputParams(prev => ({
         ...prev,
         expectedSlippage: NaN,
@@ -162,22 +164,27 @@ export default function HomePage() {
         netCost: NaN,
         aiSlippageConfidence: undefined,
         aiSlippageReasoning: undefined,
+        // internalLatency can remain from previous or be reset if needed
       }));
       calculateOutputs(orderBook, inputParams).then(newOutputs => {
         setOutputParams(newOutputs);
+        // setIsCalculating(false); // isCalculating is set to false inside calculateOutputs
       });
-    } else if (status !== 'connecting') {
+    } else if (status !== 'connecting') { // e.g. 'disconnected' or 'error'
       const currentLatency = outputParams.internalLatency;
       setOutputParams({
         ...initialOutputParams,
-        expectedSlippage: 0, // Reset to 0 instead of NaN when not connected
+        expectedSlippage: 0, 
         expectedFees: 0,
         netCost: 0,
         internalLatency: status === 'error' && currentLatency > 0 ? currentLatency : 0,
+        aiSlippageReasoning: status === 'error' ? (error || "Connection error") : "WebSocket disconnected",
+        aiSlippageConfidence: 'low',
       });
+      setIsCalculating(false); // Ensure isCalculating is false if we are not connected/calculating
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [orderBook, inputParams, status, calculateOutputs]); // Removed calculateOutputs from deps to avoid re-triggering on its own change due to useCallback structure. inputParams change will trigger it.
+  }, [orderBook, inputParams, status, error]); // Added error to deps as it's used in the else if block
 
   useEffect(() => {
     if (status === 'connected') {
@@ -192,7 +199,6 @@ export default function HomePage() {
 
   const handleInputChange = (newParams: InputParameters) => {
     setInputParams(newParams);
-    // Recalculation will be triggered by the useEffect watching inputParams and orderBook
   };
 
   return (
@@ -241,3 +247,5 @@ export default function HomePage() {
     </div>
   );
 }
+
+    
