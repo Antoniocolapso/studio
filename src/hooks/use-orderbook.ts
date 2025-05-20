@@ -5,7 +5,8 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import type { OrderBookData, WebSocketStatus } from '@/types';
 
 const WEBSOCKET_URL = process.env.NEXT_PUBLIC_WEBSOCKET_URL;
-const RECONNECT_DELAY = 5000; // 5 seconds
+// Placeholder URL - replace with your actual WebSocket endpoint
+// const WEBSOCKET_URL = 'ws://localhost:8080'; // Example placeholder
 
 export function useOrderbook() {
   const [orderBook, setOrderBook] = useState<OrderBookData | null>(null);
@@ -13,7 +14,7 @@ export function useOrderbook() {
   const [error, setError] = useState<string | null>(null);
   const socketRef = useRef<WebSocket | null>(null);
   const reconnectTimerRef = useRef<NodeJS.Timeout | null>(null);
-
+ const RECONNECT_DELAY = 5000; // 5 seconds
   const connect = useCallback(() => {
     if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
       return;

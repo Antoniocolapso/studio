@@ -1,3 +1,4 @@
+
 export type OrderBookLevel = [string, string]; // [price, quantity]
 
 export interface OrderBookData {
@@ -18,11 +19,11 @@ export interface InputParameters {
 }
 
 export interface OutputParameters {
-  expectedSlippage: number;
-  expectedFees: number;
+  expectedSlippage: number | undefined; // Can be undefined or NaN while calculating
+  expectedFees: number | undefined; // Can be undefined or NaN while calculating
   expectedMarketImpact: number;
-  netCost: number;
-  makerTakerProportion: string; // e.g., "50% Taker / 50% Maker" or "N/A"
+  netCost: number | undefined; // Can be undefined or NaN while calculating
+  makerTakerProportion: string;
   internalLatency: number; // in ms
 }
 
